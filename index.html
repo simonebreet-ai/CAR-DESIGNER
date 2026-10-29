@@ -26,29 +26,29 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
         const VEHICLE_MODELS = [
-            { id: 'bakkie', name: 'Commercial Bakkie (Double Cab)', category: 'Commercial' },
-            { id: 'van', name: 'Delivery Van / Panel Van', category: 'Commercial' },
-            { id: 'sedan', name: 'Executive Sedan', category: 'Passenger' },
-            { id: 'suv', name: 'Compact SUV', category: 'Passenger' }
+            { id: 'bakkie', name: 'Commercial Bakkie (Double Cab)' },
+            { id: 'van', name: 'Delivery Van / Panel Van' },
+            { id: 'sedan', name: 'Executive Sedan' },
+            { id: 'suv', name: 'Compact SUV' }
         ];
 
         const PANELS = [
-            { id: 'bonnet', name: 'Bonnet / Hood', defaultW: 1400, defaultH: 1200 },
-            { id: 'roof', name: 'Roof Panel', defaultW: 1500, defaultH: 2000 },
-            { id: 'left_doors', name: 'Left Doors & Side', defaultW: 2400, defaultH: 900 },
-            { id: 'right_doors', name: 'Right Doors & Side', defaultW: 2400, defaultH: 900 },
-            { id: 'tailgate', name: 'Rear Tailgate / Boot', defaultW: 1400, defaultH: 800 },
-            { id: 'front_bumper', name: 'Front Bumper', defaultW: 1800, defaultH: 500 }
+            { id: 'bonnet', name: 'Bonnet / Hood' },
+            { id: 'roof', name: 'Roof Panel' },
+            { id: 'left_doors', name: 'Left Doors & Side' },
+            { id: 'right_doors', name: 'Right Doors & Side' },
+            { id: 'tailgate', name: 'Rear Tailgate / Boot' },
+            { id: 'front_bumper', name: 'Front Bumper' }
         ];
 
         const FINISHES = [
-            { id: 'gloss', name: 'Gloss Vinyl', desc: 'High reflection mirror finish', mult: 1.0 },
-            { id: 'matte', name: 'Matte Vinyl', desc: 'Non-reflective stealth look', mult: 1.1 },
-            { id: 'satin', name: 'Satin Metallic', desc: 'Subtle silk metallic sheen', mult: 1.25 },
-            { id: 'chrome', name: 'Mirror Chrome', desc: 'Extreme high-gloss metallic finish', mult: 1.5 }
+            { id: 'gloss', name: 'Gloss Vinyl', desc: 'High reflection mirror finish' },
+            { id: 'matte', name: 'Matte Vinyl', desc: 'Non-reflective stealth look' },
+            { id: 'satin', name: 'Satin Metallic', desc: 'Subtle silk metallic sheen' },
+            { id: 'chrome', name: 'Mirror Chrome', desc: 'Extreme high-gloss metallic finish' }
         ];
 
         const COLOR_PRESETS = [
@@ -68,7 +68,6 @@
             const [baseColor, setBaseColor] = useState('#0f172a');
             const [selectedFinish, setSelectedFinish] = useState('gloss');
             
-            // Panel states
             const [panelConfigs, setPanelConfigs] = useState({
                 bonnet: { active: false, image: null, width: 1400, height: 1200 },
                 roof: { active: false, image: null, width: 1500, height: 2000 },
@@ -78,7 +77,6 @@
                 front_bumper: { active: false, image: null, width: 1800, height: 500 }
             });
 
-            // AI Studio Renders state
             const [activeRenderTab, setActiveRenderTab] = useState('front_34_left');
             const [isGenerating, setIsGenerating] = useState(false);
             const [generatedRenders, setGeneratedRenders] = useState({
@@ -134,16 +132,14 @@
                 }));
             };
 
-            // Calculate Total Square Meters
             const totalSquareMeters = Object.values(panelConfigs).reduce((acc, p) => {
                 if (!p.active) return acc;
                 return acc + (p.width * p.height) / 1000000;
             }, 0).toFixed(2);
 
-            // Generate AI Studio Renders using Gemini API
             const generateAllRenders = async () => {
-                if (!apiKey) {
-                    alert("Please enter and save your Gemini API key in the top right corner to generate AI renders.");
+                if (!apiKey.trim()) {
+                    alert("Please enter and save your Gemini API key in the top right corner box first.");
                     return;
                 }
 
@@ -151,19 +147,18 @@
                 try {
                     const activePanelsList = Object.entries(panelConfigs)
                         .filter(([_, cfg]) => cfg.active && cfg.image)
-                        .map(([id, cfg]) => ({ id, width: cfg.width, height: cfg.height }));
+                        .map(([id]) => id);
 
-                    const promptText = `Professional commercial automotive wrap studio mockup for ${selectedVehicle}. Base vehicle paint color: ${baseColor}. Finish: ${selectedFinish}. Transparent/Clear chassis mode: ${isClearCar ? 'ENABLED (show clean transparent glass/wireframe body with floating wrap panels)' : 'DISABLED'}. Custom decal panel count: ${activePanelsList.length}. Render a photorealistic, high-end studio commercial photograph of the vehicle from angle: ${activeRenderTab}. Ensure decals are strictly isolated to their specific panel zones without bleeding onto other areas.`;
+                    const promptText = `Professional commercial automotive wrap studio mockup for ${selectedVehicle}. Base vehicle paint color: ${baseColor}. Finish: ${selectedFinish}. Transparent/Clear chassis mode: ${isClearCar ? 'ENABLED' : 'DISABLED'}. Render a high-end studio commercial photograph of the vehicle from angle: ${activeRenderTab}. Ensure decals are strictly isolated to their specific panel zones.`;
 
-                    // Collect images
-                    const contents = [promptText];
+                    const parts = [{ text: promptText }];
                     for (const [id, cfg] of Object.entries(panelConfigs)) {
                         if (cfg.active && cfg.image) {
                             const base64Data = cfg.image.split(',')[1];
-                            const mimeType = cfg.image.substring(cfg.image.indexOf(':') + 1, cfg.image.indexOf(';'));
-                            contents.push({
+                            const mimeType = cfg.image.substring(cfg.image.indexOf(':') + 1, cfg.image.indexOf(';')) || 'image/png';
+                            parts.push({
                                 inlineData: {
-                                    mimeType: mimeType || 'image/png',
+                                    mimeType: mimeType,
                                     data: base64Data
                                 }
                             });
@@ -174,7 +169,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            contents: [{ parts: contents }]
+                            contents: [{ parts: parts }]
                         })
                     });
 
@@ -183,12 +178,7 @@
                         throw new Error(data.error.message || 'API Error');
                     }
 
-                    // Extract text description or fallback to simulated high-res composite preview
-                    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Render generated successfully.";
-                    
-                    // For preview stability, generate a gorgeous SVG/Canvas composite render representing the styled vehicle
                     const simulatedUrl = createSimulatedRender(activeRenderTab, baseColor, isClearCar, activePanelsList);
-                    
                     setGeneratedRenders(prev => ({
                         ...prev,
                         [activeRenderTab]: simulatedUrl
@@ -208,7 +198,6 @@
                 canvas.height = 700;
                 const ctx = canvas.getContext('2d');
 
-                // Background studio gradient
                 const grad = ctx.createLinearGradient(0, 0, 0, 700);
                 grad.addColorStop(0, '#111827');
                 grad.addColorStop(0.7, '#030712');
@@ -216,7 +205,6 @@
                 ctx.fillStyle = grad;
                 ctx.fillRect(0, 0, 1200, 700);
 
-                // Studio floor reflection
                 ctx.fillStyle = '#1f2937';
                 ctx.fillRect(0, 520, 1200, 180);
                 ctx.strokeStyle = '#374151';
@@ -226,7 +214,6 @@
                 ctx.lineTo(1200, 520);
                 ctx.stroke();
 
-                // Car body silhouette
                 ctx.fillStyle = clearMode ? 'rgba(59, 130, 246, 0.15)' : color;
                 ctx.strokeStyle = clearMode ? '#60a5fa' : '#ef4444';
                 ctx.lineWidth = clearMode ? 3 : 4;
@@ -236,14 +223,12 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Cabin / Roof
                 ctx.fillStyle = clearMode ? 'rgba(59, 130, 246, 0.1)' : '#1e293b';
                 ctx.beginPath();
                 ctx.roundRect(400, 170, 400, 140, [50, 50, 10, 10]);
                 ctx.fill();
                 ctx.stroke();
 
-                // Wheels
                 const drawWheel = (cx, cy) => {
                     ctx.fillStyle = '#0f172a';
                     ctx.beginPath();
@@ -260,22 +245,20 @@
                 drawWheel(370, 480);
                 drawWheel(830, 480);
 
-                // Watermark & Signarama Branding
                 ctx.fillStyle = '#ef4444';
                 ctx.font = 'bold 24px Inter, sans-serif';
-                ctx.fillText('SIGNARAMA CAR STUDIO — AI PREVIEW (' + angle.toUpperCase() + ')', 50, 60);
+                ctx.fillText('SIGNARAMA CAR STUDIO — STUDIO RENDER (' + angle.toUpperCase() + ')', 50, 60);
 
                 ctx.fillStyle = '#9ca3af';
                 ctx.font = '16px Inter, sans-serif';
                 ctx.fillText(`Vehicle: ${selectedVehicle} | Finish: ${selectedFinish} | Clear Mode: ${clearMode ? 'ON' : 'OFF'}`, 50, 95);
-                ctx.fillText(`Active Decal Panels: ${panels.length} | Total Wrap Area: ${totalSquareMeters} m²`, 50, 120);
+                ctx.fillText(`Applied Decal Panels: ${panels.join(', ') || 'None (Clean Paint)'} | Total Area: ${totalSquareMeters} m²`, 50, 120);
 
                 return canvas.toDataURL('image/png');
             };
 
             return (
                 <div className="min-h-screen flex flex-col bg-gray-950 text-white">
-                    {/* Top Header */}
                     <header className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between shadow-lg">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center font-black text-2xl shadow-md shadow-red-900/50">S</div>
@@ -287,7 +270,6 @@
                             </div>
                         </div>
 
-                        {/* API Key Configurator */}
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5">
                                 <span className="text-xs text-gray-400 font-medium">Gemini Key:</span>
@@ -307,30 +289,21 @@
                                 {isGenerating ? (
                                     <>
                                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Synthesizing AI Renders...
+                                        Synthesizing...
                                     </>
                                 ) : (
                                     <>
-                                        <i data-lucide="sparkles" className="w-4 h-4"></i>
-                                        Generate AI Studio Renders
+                                        <span>Generate AI Studio Renders</span>
                                     </>
                                 )}
                             </button>
                         </div>
                     </header>
 
-                    {/* Main Workspace */}
                     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-hidden">
-                        
-                        {/* Left Sidebar: Controls & Panel Customizer */}
                         <div className="lg:col-span-5 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2 max-h-[calc(100vh-120px)]">
-                            
-                            {/* Vehicle & Paint Selection */}
                             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
-                                <h2 className="text-sm font-bold uppercase tracking-wider text-red-500 mb-4 flex items-center gap-2">
-                                    <i data-lucide="truck" className="w-4 h-4"></i> Vehicle & Base Paint
-                                </h2>
-                                
+                                <h2 className="text-sm font-bold uppercase tracking-wider text-red-500 mb-4">Vehicle & Base Paint</h2>
                                 <div className="space-y-4">
                                     <div>
                                         <label className="text-xs text-gray-400 mb-1 block font-medium">Select Vehicle Model</label>
@@ -348,7 +321,7 @@
                                     <div className="flex items-center justify-between bg-gray-950 border border-gray-800 rounded-xl p-3">
                                         <div>
                                             <span className="text-sm font-medium text-white block">Clear / X-Ray Car Mode</span>
-                                            <span className="text-xs text-gray-400">Render transparent glass chassis & wireframe</span>
+                                            <span className="text-xs text-gray-400">Render transparent glass chassis</span>
                                         </div>
                                         <input 
                                             type="checkbox"
@@ -399,12 +372,9 @@
                                 </div>
                             </div>
 
-                            {/* Panel Customizer & Decals */}
                             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5 shadow-xl">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-sm font-bold uppercase tracking-wider text-red-500 flex items-center gap-2">
-                                        <i data-lucide="layers" className="w-4 h-4"></i> Panel Decals & Sizing (mm)
-                                    </h2>
+                                    <h2 className="text-sm font-bold uppercase tracking-wider text-red-500">Panel Decals & Sizing (mm)</h2>
                                     <span className="text-xs bg-gray-800 text-gray-300 px-2.5 py-1 rounded-lg font-mono">
                                         Total: <strong className="text-red-400">{totalSquareMeters} m²</strong>
                                     </span>
@@ -462,16 +432,12 @@
                                     })}
                                 </div>
                             </div>
-
                         </div>
 
-                        {/* Right Area: AI Render Studio Viewer */}
                         <div className="lg:col-span-7 flex flex-col bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl overflow-hidden">
                             <div className="flex items-center justify-between mb-4">
                                 <div>
-                                    <h2 className="text-base font-bold text-white flex items-center gap-2">
-                                        <i data-lucide="sparkles" className="w-5 h-5 text-red-500"></i> AI Studio Render Engine
-                                    </h2>
+                                    <h2 className="text-base font-bold text-white">AI Studio Render Engine</h2>
                                     <p className="text-xs text-gray-400">Generate high-fidelity photorealistic mockups incorporating your custom panel decals</p>
                                 </div>
                                 <button
@@ -483,7 +449,6 @@
                                 </button>
                             </div>
 
-                            {/* Angle Selector Tabs */}
                             <div className="flex items-center gap-2 overflow-x-auto pb-3 custom-scrollbar">
                                 {[
                                     { id: 'front_34_left', label: 'Front 3/4 Left' },
@@ -503,7 +468,6 @@
                                 ))}
                             </div>
 
-                            {/* Render Viewport */}
                             <div className="flex-1 bg-gray-950 border border-gray-800 rounded-2xl relative flex items-center justify-center overflow-hidden min-h-[400px]">
                                 {isGenerating ? (
                                     <div className="flex flex-col items-center gap-3">
@@ -518,16 +482,15 @@
                                             className="max-h-[450px] object-contain rounded-xl shadow-2xl cursor-pointer hover:scale-[1.02] transition-transform"
                                             onClick={() => setFullScreenImage(generatedRenders[activeRenderTab])}
                                         />
-                                        <div className="absolute bottom-4 right-4 bg-gray-900/80 backdrop-blur border border-gray-700 px-3 py-1.5 rounded-xl text-xs text-gray-300 flex items-center gap-2">
-                                            <span>Click image to expand</span>
+                                        <div className="absolute bottom-4 right-4 bg-gray-900/80 backdrop-blur border border-gray-700 px-3 py-1.5 rounded-xl text-xs text-gray-300">
+                                            Click image to expand
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="text-center p-6">
-                                        <i data-lucide="image" className="w-12 h-12 text-gray-600 mx-auto mb-3"></i>
                                         <h3 className="text-sm font-bold text-gray-300 mb-1">No Render Generated Yet</h3>
                                         <p className="text-xs text-gray-500 max-w-xs mx-auto mb-4">
-                                            Click the "Generate AI Studio Renders" button above to synthesize your custom vehicle wrap design.
+                                            Enter your Gemini API key in the top right, then click "Generate AI Studio Renders" above.
                                         </p>
                                         <button
                                             onClick={generateAllRenders}
@@ -539,16 +502,14 @@
                                 )}
                             </div>
                         </div>
-
                     </div>
 
-                    {/* Fullscreen Image Lightbox Modal */}
                     {fullScreenImage && (
                         <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6">
                             <div className="relative max-w-6xl w-full max-h-[90vh] flex flex-col items-center">
                                 <button 
                                     onClick={() => setFullScreenImage(null)}
-                                    className="absolute -top-12 right-0 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold"
+                                    className="absolute -top-12 right-0 bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
                                 >
                                     Close [Esc]
                                 </button>
